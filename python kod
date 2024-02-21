@@ -1,0 +1,223 @@
+from tkinter import *
+from tkinter import messagebox
+import threading
+import random
+
+#########################základné premenné##################################################
+
+hlavni=Tk()
+c=Canvas(hlavni, width=1600, height=800, background="#FFF7F1")
+c.pack()
+pocethracov=36
+body=[]
+hralispolu=[]
+vofighte=[-1]*pocethracov
+hraIde=True
+pocetOdohranych=[0]*pocethracov
+farbicky=["brown", "blue", "black", "red", "purple", "darkgreen"]
+chyba=20
+
+
+
+#########################pomocné funkcie##################################################
+
+def call_repeatedly(interval, func, *args):
+    stopped = threading.Event()
+    def loop():
+        while not stopped.wait(interval): # the first call is in `interval` secs
+            func(*args)
+    threading.Thread(target=loop).start()    
+    return stopped.set
+
+
+def nacitajbody(trash):
+    global pocethracov
+    subor=open("Body.txt", "r+")
+    i=0
+    for x in subor:
+        if i<pocethracov:
+            body.append(x.strip().split())
+            body[i][1]=int(body[i][1])
+            i+=1
+        elif i<pocethracov*2:
+            hralispolu.append(list(map(int, x.split())))
+            i+=1
+        elif i<pocethracov*3:
+            vofighte[i-2*pocethracov]=int(x.strip())
+            i+=1
+        elif i<pocethracov*4:
+            pocetOdohranych[i-3*pocethracov]=int(x.strip())
+            i+=1
+    subor.close()
+
+
+def zapisdosuboru(trash):
+    subor=open("Body.txt", "r+")
+    bodyw=[0]*len(body)
+    subor.truncate(0)
+    subor.seek(0)
+    for i in range(pocethracov):
+        bodyw[i]=body[i][0]+" "+str(body[i][1])+"\n"
+        subor.write(bodyw[i])
+    for i in range(pocethracov):
+        stringo=""
+        for j in range(pocethracov-1):
+            stringo=stringo+str(hralispolu[i][j])+" "
+        stringo=stringo+str(hralispolu[i][pocethracov-1])+"\n"
+        subor.write(stringo)
+    for i in range(pocethracov):
+        stringo=str(vofighte[i])+"\n"
+        subor.write(stringo)
+    for i in range(pocethracov):
+        stringo=str(pocetOdohranych[i])+"\n"
+        subor.write(stringo)
+    subor.close()
+
+def obrazovkarefresh(trash):
+    pp=[]
+    for i in range(pocethracov):
+        pp.append(body[i][1])
+    novy=[i[0] for i in sorted(enumerate(pp), key=lambda x:x[1])]
+    print(novy)
+    c.delete("body")
+    c.delete("fighty")
+    for i in range(pocethracov):
+        j=novy[i]
+        c.create_text(70, 730-20*i, text=body[j][0], tags="body", fill=farbicky[j//6], font="Arial 11 normal")
+    for i in range(pocethracov):
+        j=novy[i]
+        c.create_text(140, 730-20*i, text=body[j][1], tags="body", fill=farbicky[j//6], font="Arial 11 normal")
+        c.create_text(20, 730-20*i, text=str(36-i)+".", tags="body")
+    kdesme=30
+    for i in range(pocethracov):
+        if vofighte[i]==-1:
+            continue
+        elif vofighte[i]<i:
+            continue
+        else:
+            c.create_text(480, kdesme, text=body[i][0], tags="body", fill=farbicky[i//6], font="Arial 11 normal")
+            c.create_text(550, kdesme, text="verzus", tags="body", font="Arial 11 normal")
+            c.create_text(630, kdesme, text=body[vofighte[i]][0], tags="body", fill=farbicky[vofighte[i]//6], font="Arial 11 normal")
+            kdesme+=20
+
+def urobfighty(trash):
+    global pocethracov
+    global hraIde
+    if hraIde:
+        for k in range(50):
+            i=random.randint(0, pocethracov-1)
+            if vofighte[i]==-1:
+                for j in range(30):
+                    cislo=random.randrange(0, pocethracov-1)
+                    if cislo==i:
+                        continue
+                    if (vofighte[cislo]==-1 and -65<body[i][1]-body[cislo][1]<65) and hralispolu[i][cislo]==0:
+                        vofighte[cislo]=i
+                        vofighte[i]=cislo
+                        ########Pre testovacie úèeli vypnuté########X
+                        hralispolu[i][cislo]=1                     #
+                        hralispolu[cislo][i]=1                     #
+                        ########Pre testovacie úèeli vypnuté########X
+                        pocetOdohranych[i]+=1
+                        pocetOdohranych[cislo]+=1
+                        break
+                    else:
+                        continue
+
+def stopuj():
+    global hraIde
+    hraIde=False
+    c.create_text(500, 500, text="Hra končí o najviac 10 minút. Dohrajte svoje súboje a oddýchnite si po boji.", tags="oznamenie", font="Arial 11 normal", fill="red")
+
+def vyhodnot():
+    vyhral=E1.get()
+    prehral=E2.get()
+    global chyba
+    if vyhral in slovnik.keys() and prehral in slovnik.keys():
+        vyhralI=slovnik[vyhral]
+        prehralI=slovnik[prehral]
+        if pocetOdohranych[vyhralI]<6:
+            c1=1
+        else:
+            c1=0
+        if pocetOdohranych[prehralI]<6:
+            c2=1
+        else:
+            c2=0
+        body[vyhralI][1]=int(body[vyhralI][1]+32*(1-1/(1+10**((body[prehralI][1]-body[vyhralI][1])/400)))+15*c1)       
+        body[prehralI][1]=int(body[prehralI][1]+32*(0-1/(1+10**((body[vyhralI][1]-body[prehralI][1])/400)))+15*c2)     
+        vofighte[vyhralI]=-1
+        vofighte[prehralI]=-1
+        E1.delete(0, END)
+        E2.delete(0, END)
+    else:
+        c.create_text(1400, chyba, text="Clovek "+vyhral+" alebo clovek "+prehral+" neexistuje")
+        chyba+=30
+    
+                      
+        
+def remiza():
+    vyhral=E1.get()
+    prehral=E2.get()
+    if vyhral in slovnik.keys() and prehral in slovnik.keys():
+        vyhralI=slovnik[vyhral]
+        prehralI=slovnik[prehral]
+        if pocetOdohranych[vyhralI]<6:
+            c1=1
+        else:
+            c1=0
+        if pocetOdohranych[prehralI]<6:
+            c2=1
+        else:
+            c2=0
+        body[vyhralI][1]=int(body[vyhralI][1]+32*(0.5-1/(1+10**((body[prehralI][1]-body[vyhralI][1])/400)))+15*c1)                                                                                       
+        body[prehralI][1]=int(body[prehralI][1]+32*(0.5-1/(1+10**((body[vyhralI][1]-body[prehralI][1])/400)))+15*c2)                                                                                      
+        vofighte[vyhralI]=-1
+        vofighte[prehralI]=-1
+        E1.delete(0, END)
+        E2.delete(0, END)
+    else:
+        c.create_text(1400, chyba, text="Clovek "+vyhral+" alebo clovek "+prehral+" neexistuje")
+        chyba+=30
+
+def rigged():
+    global chyba
+    hrac=E3.get()
+    if hrac in slovnik.keys():
+        bodus=int(E4.get())
+        hracI=slovnik[hrac]
+        body[hracI][1]+=bodus
+        E3.delete(0, END)
+        E4.delete(0, END)
+    else:
+        c.create_text(1400, chyba, text="Clovek "+hrac+" neexistuje")
+        chyba+=30
+        
+#########################Telo programu##################################################
+
+nacitajbody(10)
+cancel_future_calls = call_repeatedly(10, zapisdosuboru, "trash")
+cancel_future_calls = call_repeatedly(10, print, "zaloha")
+cancel_future_calls = call_repeatedly(4, obrazovkarefresh, "zaloha")
+cancel_future_calls = call_repeatedly(5, urobfighty, "zaloha")
+
+slovnik={}
+for i in range(pocethracov):
+    slovnik[body[i][0]]=i
+B = Button(c, text ="Zastav Hru", command = stopuj)
+B.place(x=900,y=300, anchor="c")
+Bu = Button(c, text="Vyhral Prvý", command=vyhodnot)
+Bu.place(x=900, y=80, anchor="c")
+But=Button(c, text="Remíza", command=remiza)
+But.place(x=900, y=110, anchor="c")
+E1=Entry(c)
+E1.place(x=830, y=50, anchor="c")
+E2=Entry(c)
+E2.place(x=980, y=50, anchor="c")
+E3=Entry(c)
+E3.place(x=830, y=150, anchor="c")
+E4=Entry(c)
+E4.place(x=980, y=150, anchor="c")
+Butt=Button(c, text="Pridaj hracovi nad buttonom vlavo body nad buttonom vpravo", command=rigged)
+Butt.place(x=900, y=180, anchor="c")
+mainloop()
